@@ -1,0 +1,37 @@
+# Copia o build (dist) para a pasta docs/ na main.
+#
+# Em GitHub: Settings → Pages → Deploy from a branch → main → /docs
+#
+# Ignora pushes que alteram só docs/ (evita loop quando o bot faz commit).
+name: Deploy site to docs
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-docs
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: main
+          folder: dist
+          target-folder: docs
+          commit-message: "chore: update GitHub Pages [skip ci]"
