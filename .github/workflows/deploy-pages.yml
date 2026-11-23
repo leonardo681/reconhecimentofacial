@@ -3,6 +3,7 @@
 # Em GitHub: Settings → Pages → Deploy from a branch → main → /docs
 #
 # Ignora pushes que alteram só docs/ (evita loop quando o bot faz commit).
+# Antes de publicar, roda lint, checagem de tipos e testes: se algo falhar, nada é publicado.
 name: Deploy site to docs
 
 on:
@@ -10,6 +11,7 @@ on:
     branches: [main]
     paths-ignore:
       - "docs/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,12 +24,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
       - run: npm run build
       - uses: JamesIves/github-pages-deploy-action@v4
         with:
