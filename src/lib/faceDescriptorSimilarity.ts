@@ -29,6 +29,8 @@ const SIMILARITY_DISPLAY_GAMMA = 0.28;
 /**
  * Converte distância euclidiana em percentual 0–100 (fidelidade/compatibilidade).
  * Só se aplica a distâncias < limiar de match; ordem: menor d → maior %.
+ * Atenção: por causa da escala "generosa", todo match aparece entre ~73% e 100%.
+ * Por isso a interface mostra junto a faixa qualitativa de `matchLevel`.
  */
 export function distanceToSimilarityPercent(
   distance: number | null | undefined,
@@ -46,6 +48,24 @@ export function distanceToSimilarityPercent(
   return Math.round(100 * clamped ** SIMILARITY_DISPLAY_GAMMA);
 }
 
+/** Faixa qualitativa da correspondência, para o resultado não parecer uma certeza. */
+export type MatchLevel = "alta" | "media" | "baixa";
+
+/** Limites (distância euclidiana) de cada faixa. Acima de 0,5 vale conferir visualmente. */
+export const MATCH_LEVEL_LIMITS = { alta: 0.4, media: 0.5 } as const;
+
+export function matchLevel(distance: number): MatchLevel {
+  if (distance < MATCH_LEVEL_LIMITS.alta) return "alta";
+  if (distance < MATCH_LEVEL_LIMITS.media) return "media";
+  return "baixa";
+}
+
+export const MATCH_LEVEL_LABEL: Record<MatchLevel, string> = {
+  alta: "Correspondência alta",
+  media: "Correspondência média",
+  baixa: "Correspondência baixa — confira visualmente",
+};
+
 /**
  * Só em desenvolvimento: distância bruta, percentual, limiar (validação no console).
  */
@@ -61,6 +81,7 @@ export function logFaceMatchDebug(
     referenciaExibicao: SIMILARITY_DISPLAY_REFERENCE,
     gama: SIMILARITY_DISPLAY_GAMMA,
     percentualExibido: displayPercent,
+    faixa: matchLevel(distance),
     nota:
       "100 * ((ref-d)/ref)^gama; ref > limiar para fidelidade mais estável (ângulo/luz)",
   };
