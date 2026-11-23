@@ -1,0 +1,30 @@
+{
+  "etapas": {
+    "pronto": {
+      "ok": true,
+      "streamsVivos": 1,
+      "ms": 7092
+    },
+    "captura_camera": {
+      "ok": true,
+      "msClique": 35049,
+      "msAnalise": 108114,
+      "texto": "Nenhum rosto detectado na imagem.",
+      "ms": 108738
+    },
+    "cadastro": {
+      "ok": true,
+      "msClique": 5962,
+      "streamsDeCameraAtivosNoCadastro": 0,
+      "ms": 79654
+    },
+    "voltar_e_paisagem": {
+      "ok": true,
+      "streamsAoVoltar": 1,
+      "botaoCapturarVisivelSemRolar": true,
+      "botaoTopoY": 342,
+      "botaoBaseY": 386,
+      "ms": 6827
+    }
+  }
+}

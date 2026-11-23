@@ -1,6 +1,8 @@
 # Logs
 logs
 *.log
+# Registros do estado original, citados no RELATORIO_CORRECOES.md
+!apresentacao/antes/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

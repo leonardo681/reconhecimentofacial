@@ -1,0 +1,21 @@
+{
+  "rotulo": "depois",
+  "etapas": {
+    "pronto_e_camera_ao_vivo": {
+      "ok": true,
+      "streamsVivos": 1,
+      "ms": 6005
+    },
+    "sem_rosto_tela_resultado": {
+      "ok": true,
+      "streamsVivosComCameraFora": 1,
+      "ms": 341744
+    },
+    "nova_consulta": {
+      "ok": true,
+      "streamsVivosDepoisDeVoltar": 1,
+      "streamsCriados": 1,
+      "ms": 16167
+    }
+  }
+}

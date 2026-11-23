@@ -1,0 +1,29 @@
+{
+  "assets": [
+    {
+      "arquivo": "assets/index-ClJLfppi.js",
+      "kb": 982,
+      "kbGzip": 265.8
+    },
+    {
+      "arquivo": "assets/index-DDt6XuS7.css",
+      "kb": 61.9,
+      "kbGzip": 11.1
+    }
+  ],
+  "totais": {
+    "jsKb": 982,
+    "jsGzipKb": 265.8,
+    "cssKb": 61.9,
+    "cssGzipKb": 11.1,
+    "arquivosJs": 1,
+    "modelosMb": 12.5,
+    "imagensKb": 927.8,
+    "fontesKb": 0,
+    "tem404": false,
+    "temNojekyll": true,
+    "totalArquivos": 27,
+    "pacotesInstalados": 482,
+    "dependenciasDiretas": 71
+  }
+}

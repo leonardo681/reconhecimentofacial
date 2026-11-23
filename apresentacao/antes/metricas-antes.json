@@ -1,0 +1,119 @@
+{
+  "base": "http://127.0.0.1:4174/reconhecimentofacial/",
+  "inicio": "2026-11-22T22:45:20.251Z",
+  "etapas": {
+    "ficar_pronto": {
+      "ok": false,
+      "ms": 3208632,
+      "erro": "locator.waitFor: Timeout 3000000ms exceeded."
+    },
+    "upload_conhecido": {
+      "ok": true,
+      "msAnalise": 288023,
+      "reconheceu": true,
+      "ms": 291079
+    },
+    "upload_dupla": {
+      "ok": true,
+      "msAnalise": 117179,
+      "henrique": true,
+      "desconhecido": true,
+      "ms": 119562
+    },
+    "abrir_cadastro": {
+      "ok": true,
+      "streamsDeCameraAtivosNoCadastro": 0,
+      "ms": 106167
+    },
+    "adicionar_fotos": {
+      "ok": true,
+      "fotosAdicionadas": 0,
+      "ms": 28506
+    },
+    "voltar_do_cadastro": {
+      "ok": true,
+      "ms": 10646
+    },
+    "celular_paisagem": {
+      "ok": true,
+      "botaoCapturarVisivelSemRolar": false,
+      "botaoTopoY": 514,
+      "ms": 33372
+    },
+    "erro_camera": {
+      "ok": true,
+      "mensagem": "Câmera | CÂMERA | Não foi possível acessar a câmera. Verifique as permissões.",
+      "ms": 4673
+    },
+    "arquivo_invalido": {
+      "ok": true,
+      "travouEmAnalisando": true,
+      "ms": 22880
+    }
+  },
+  "linhaDoTempo": [
+    {
+      "s": 28,
+      "evento": "navegação iniciada"
+    },
+    {
+      "s": 36,
+      "evento": "foto baixada: Henrique-B8UT7COy.jpeg"
+    },
+    {
+      "s": 216,
+      "evento": "foto baixada: Isabella-sU-aMHMS.jpeg"
+    },
+    {
+      "s": 719,
+      "evento": "foto baixada: Issaga-Q6AI4sBX.jpeg"
+    },
+    {
+      "s": 954,
+      "evento": "foto baixada: Leandro-DEHdAI6M.jpeg"
+    },
+    {
+      "s": 1084,
+      "evento": "foto baixada: Leonardo-CpS0mKBp.jpeg"
+    },
+    {
+      "s": 1258,
+      "evento": "foto baixada: Leticia-CoWoEmXB.jpeg"
+    },
+    {
+      "s": 1704,
+      "evento": "foto baixada: Luciano-C2s4jeCK.jpeg"
+    },
+    {
+      "s": 1933,
+      "evento": "foto baixada: Marcelo-BaALISkK.jpeg"
+    },
+    {
+      "s": 2306,
+      "evento": "foto baixada: Maria_Eduarda-YoqLGxEv.jpeg"
+    },
+    {
+      "s": 2502,
+      "evento": "foto baixada: Rithiely-x72cT9ZH.jpeg"
+    },
+    {
+      "s": 2690,
+      "evento": "foto baixada: Carlos_Augusto_Bohn-6i1l3zAQ.png"
+    },
+    {
+      "s": 2921,
+      "evento": "foto baixada: Rodrigo_Delduque-BK5f7aB7.png"
+    },
+    {
+      "s": 3751,
+      "evento": "foto baixada: Henrique-B8UT7COy.jpeg"
+    }
+  ],
+  "console": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: net::ERR_SOCKET_NOT_CONNECTED",
+    "Failed to load resource: net::ERR_SOCKET_NOT_CONNECTED",
+    "Failed to load resource: net::ERR_SOCKET_NOT_CONNECTED"
+  ],
+  "fim": "2026-11-23T00:08:56.372Z"
+}

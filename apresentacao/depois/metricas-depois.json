@@ -1,0 +1,108 @@
+{
+  "base": "http://127.0.0.1:4173/reconhecimentofacial/",
+  "quando": "2026-11-23T02:24:40.410Z",
+  "etapas": {
+    "visita1_rede10mbps": {
+      "ok": true,
+      "ms": 14228,
+      "tInterfaceMs": 4002,
+      "tProntoMs": 12632,
+      "kbBaixados": 9091,
+      "requisicoes": 29,
+      "tarefasLongas": 10,
+      "msTravadaTotal": 2954,
+      "maiorTravamentoMs": 1056,
+      "lang": "pt-BR"
+    },
+    "visita2_recarregar": {
+      "ok": true,
+      "ms": 4185,
+      "tInterfaceMs": 271,
+      "tProntoMs": 4182,
+      "kbBaixados": 4,
+      "requisicoes": 29,
+      "tarefasLongas": 3,
+      "msTravadaTotal": 2039,
+      "maiorTravamentoMs": 1003
+    },
+    "captura_camera": {
+      "ok": false,
+      "ms": 61212,
+      "erro": "locator.click: Timeout 60000ms exceeded."
+    },
+    "upload_conhecido": {
+      "ok": true,
+      "ms": 196733,
+      "reconheceu": true
+    },
+    "upload_dupla": {
+      "ok": true,
+      "ms": 115834,
+      "henrique": true,
+      "desconhecido": true
+    },
+    "abrir_cadastro": {
+      "ok": false,
+      "ms": 62236,
+      "erro": "locator.click: Timeout 60000ms exceeded."
+    },
+    "adicionar_fotos": {
+      "ok": true,
+      "ms": 14363,
+      "fotosAdicionadas": 1
+    },
+    "salvar_cadastro": {
+      "ok": true,
+      "ms": 319524,
+      "msAteFicarPronto": 317852,
+      "tarefasLongas": 22,
+      "msTravadaTotal": 89069,
+      "maiorTravamentoMs": 33677
+    },
+    "reconhecer_cadastrado": {
+      "ok": true,
+      "ms": 209296,
+      "reconheceuAlan": true
+    },
+    "henrique_apos_cadastro": {
+      "ok": true,
+      "ms": 373244,
+      "mostraHenrique": true,
+      "mostraAlanTeste": false
+    },
+    "sem_rosto": {
+      "ok": true,
+      "ms": 97172,
+      "mensagem": "Nenhum rosto detectado na imagem."
+    },
+    "foto_grande": {
+      "ok": true,
+      "ms": 61272,
+      "tarefasLongas": 11,
+      "msTravadaTotal": 6182,
+      "maiorTravamentoMs": 1343
+    },
+    "celular_retrato": {
+      "ok": true,
+      "ms": 181665
+    },
+    "celular_paisagem": {
+      "ok": true,
+      "ms": 30945,
+      "botaoCapturarVisivelSemRolar": false,
+      "botaoTopoY": 381
+    },
+    "erro_camera": {
+      "ok": true,
+      "ms": 31543,
+      "mensagem": "Câmera | CÂMERA | Permissão da câmera negada. Libere a câmera nas configurações do navegador e toque em reiniciar."
+    },
+    "arquivo_invalido": {
+      "ok": true,
+      "ms": 11105,
+      "travouEmAnalisando": false,
+      "texto": "Não foi possível abrir esta imagem. Envie um arquivo JPG, PNG ou WEBP válido."
+    }
+  },
+  "console": []
+}

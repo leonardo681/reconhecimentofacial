@@ -1,0 +1,16 @@
+
+> vite_react_shadcn_ts@0.0.0 test
+> vitest run
+
+
+ RUN  v3.2.4 <projeto>
+
+ ✓ src/test/example.test.ts (1 test) 6ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  15:46:26
+   Duration  16.53s (transform 1.97s, setup 5.23s, collect 58ms, tests 6ms, environment 9.01s, prepare 1.57s)
+
+
+EXIT=0 DURACAO_S=22.6

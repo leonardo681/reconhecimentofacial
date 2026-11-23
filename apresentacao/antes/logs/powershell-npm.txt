@@ -1,0 +1,16 @@
+powershell.exe : npm : O arquivo C:\Program Files\nodejs\npm.ps1 não pode ser carregado porque a execução de scripts 
+foi desabilitada 
+No linha:1 caractere:479
++ ... ull; $out = powershell.exe -NoProfile -ExecutionPolicy Restricted -Co ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm : O arquivo...i desabilitada :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+neste sistema. Para obter mais informações, consulte about_Execution_Policies em 
+https://go.microsoft.com/fwlink/?LinkID=135170.
+No linha:1 caractere:1
++ npm -v
++ ~~~
+    + CategoryInfo          : ErrodeSegurança: (:) [], PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess
+
