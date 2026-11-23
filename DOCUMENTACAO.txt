@@ -5,7 +5,7 @@
 
 Projeto:        Reconhecimento Facial — PMSC São José
 Base técnica:   React + Vite + TypeScript + face-api.js
-Data:           Abril de 2026
+Data:           Abril de 2026 (revisado em novembro de 2026)
 Tipo:           Projeto acadêmico / institucional
 
 --------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ referenciando a PMSC, e permite:
 Os dados de pessoas cadastradas ficam em memória durante a sessão. Novos
 cadastros feitos pelo usuário são adicionados à base em tempo real, mas não
 são persistidos em banco de dados ou armazenamento local após recarregar a
-página.
+página (a interface avisa e pede confirmação antes de sair da página).
 
 
 --------------------------------------------------------------------------------
@@ -51,23 +51,24 @@ página.
 
 Frontend:
   - React 18
-  - TypeScript
-  - Vite 5 (bundler e servidor de desenvolvimento)
+  - TypeScript (modo strict)
+  - Vite 6 (bundler e servidor de desenvolvimento)
   - React Router DOM (roteamento)
   - Tailwind CSS (estilização)
-  - shadcn/ui + Radix UI (componentes de interface)
   - Lucide React (ícones)
+  - Sonner (avisos na tela)
+  - Fontes Rajdhani e Source Sans 3 servidas pelo próprio site (@fontsource)
 
 Reconhecimento facial:
-  - face-api.js 0.22.2
+  - face-api.js 0.22.2 (carregado sob demanda, num arquivo separado)
   - Modelos: SSD MobileNet v1 (detecção), Face Landmark 68 (pontos faciais),
     Face Recognition Net (descritores de 128 dimensões)
 
 Ferramentas de desenvolvimento:
   - ESLint (lint)
-  - Vitest + Testing Library (testes unitários)
-  - Playwright (testes E2E — configurado)
-  - GitHub Actions (deploy automático para GitHub Pages)
+  - Vitest + Testing Library (testes unitários e de componentes)
+  - Playwright (teste de ponta a ponta no navegador)
+  - GitHub Actions (checagens + deploy automático para GitHub Pages)
 
 
 --------------------------------------------------------------------------------
@@ -77,22 +78,29 @@ Ferramentas de desenvolvimento:
 A aplicação segue uma arquitetura SPA (Single Page Application) com a lógica
 principal dividida em camadas:
 
-  [Interface]  Index.tsx, CameraCapture, QuickRegister
+  [Interface]  Index.tsx, CameraCapture, FaceOverlay, QuickRegister
        |
   [Hook]       useFaceRecognition.ts — carrega modelos, monta base, faz matching
        |
-  [Biblioteca] face-api.js — detecção e descritores faciais
+  [Biblioteca] src/lib — geometria das caixas, comparação, imagens, cache,
+       |                 mensagens da câmera (funções puras, com testes)
        |
-  [Dados]      persons.ts — lista inicial de pessoas com fotos
+  [IA]         face-api.js — detecção e descritores faciais
+       |
+  [Dados]      persons.ts (pessoas e fotos) + descritoresReferencia.json
 
-Fluxo de estados da tela principal (Index.tsx):
+Fluxo da tela principal (Index.tsx):
 
-  camera  -->  result   (quando nenhum rosto é detectado)
-     |
-     +----->  register  (quando o usuário escolhe cadastrar pessoa desconhecida)
+  Câmera ao vivo --Capturar/Enviar imagem--> Imagem congelada + caixas + cartões
+       ^                                            |
+       +------------- Nova Consulta ----------------+
+                                                    |
+                                    Cadastrar rosto #N (tela de cadastro)
 
-Durante o estado "camera", após uma captura com rostos detectados, os
-resultados são exibidos abaixo da câmera sem mudar de tela.
+  - A imagem analisada fica congelada no quadro, com as caixas alinhadas.
+  - "Nenhum rosto detectado" aparece na própria tela (sem trocar de tela).
+  - A tela de cadastro entra no histórico do navegador: o botão/gesto
+    "voltar" do celular volta para a câmera em vez de sair do app.
 
 
 --------------------------------------------------------------------------------
@@ -104,31 +112,48 @@ resultados são exibidos abaixo da câmera sem mudar de tela.
   - Suporte a câmera frontal (user) e traseira (environment)
   - Detecção automática quando o dispositivo possui apenas uma câmera
   - Resolução ideal: 640x480
+  - "Capturar" só fica disponível quando o vídeo já tem imagem
+  - A câmera é desligada ao sair da tela de captura e quando a aba vai para
+    segundo plano; pedidos de câmera antigos são descartados (sem vazamento)
+  - Mensagens específicas: permissão negada, câmera em uso, câmera
+    inexistente, conexão sem HTTPS
   - Botão para reiniciar o stream da câmera
 
 5.2 Envio de imagem
   - Formatos aceitos: JPG, JPEG, PNG, WEBP
   - Validação por MIME type e extensão do arquivo
-  - Pré-visualização da imagem enviada no quadro de análise
+  - Arquivo inválido mostra uma mensagem de erro (a tela não trava)
+  - Fotos grandes são reduzidas para no máximo 1280 px no maior lado
 
 5.3 Detecção e identificação de rostos
   - Detecção de múltiplos rostos por imagem (detectAllFaces)
-  - Caixas delimitadoras (bounding boxes) desenhadas sobre o vídeo/imagem:
+  - Rostos numerados da esquerda para a direita (#1, #2…), na imagem e nos
+    cartões
+  - Caixas desenhadas sobre a imagem congelada, alinhadas em qualquer
+    proporção (retrato, paisagem, 16:9) e com rótulos legíveis:
       * Verde  = pessoa identificada
       * Vermelho = pessoa desconhecida
-  - Exibição do nome e percentual de compatibilidade sobre cada rosto
-  - Lista resumida abaixo da câmera com detalhes de cada resultado
+  - Uma mesma pessoa não é atribuída a dois rostos da mesma imagem
+  - Cada correspondência mostra a faixa (alta, média ou baixa) e o percentual
+  - Aviso fixo: o resultado é uma sugestão automática
 
 5.4 Cadastro rápido
-  - Disponível para rostos não identificados
-  - Campos: nome completo (obrigatório) e observações (opcional)
-  - A foto capturada é associada ao novo cadastro
-  - O descritor facial é calculado e incluído na base em memória
+  - Disponível para rostos não identificados (botão "Cadastrar" no cartão)
+  - Cadastra o rosto escolhido (descritor e recorte daquele rosto)
+  - Campos: nome completo (obrigatório), marcas corporais (tipo, local,
+    observação), observações gerais e fotos adicionais
+  - Fotos adicionais sem rosto ou que parecem ser de outra pessoa são
+    recusadas, com aviso
+  - O cadastro entra na base sem reprocessar as outras fotos e o rosto passa
+    a aparecer como identificado na consulta atual
+  - Envio protegido contra clique duplo, com mensagem de sucesso ou de erro
 
 5.5 Base inicial de pessoas
   - 12 pessoas pré-cadastradas com fotos em src/assets/persons/
   - Nomes: Henrique, Isabella, Issaga, Leandro, Leonardo, Letícia, Luciano,
     Marcelo, Maria Eduarda, Rithiély, Carlos Augusto Bohn, Rodrigo Delduque
+  - Os descritores dessas fotos já vêm calculados em
+    src/data/descritoresReferencia.json (identificados pelo hash da foto)
 
 
 --------------------------------------------------------------------------------
@@ -151,23 +176,39 @@ Parâmetros configurados (src/lib/faceDescriptorSimilarity.ts):
     - Distâncias abaixo de 0.6 indicam correspondência no banco
     - Faixa típica para a mesma pessoa: ~0,15 a 0,5
 
+  Faixas exibidas:
+    - Alta:  distância < 0,40
+    - Média: 0,40 a 0,50
+    - Baixa: 0,50 a 0,60 ("confira visualmente")
+
   Percentual de compatibilidade exibido na interface:
     - Conversão não linear da distância euclidiana para 0–100%
     - Referência de exibição: 0.88
     - Curvatura (gamma): 0.28
     - Fórmula: 100 * ((ref - d) / ref) ^ gamma
-    - Objetivo: apresentar percentuais mais intuitivos ao usuário
+    - Atenção: com essa escala, todo match aparece entre ~73% e 100%;
+      por isso a faixa qualitativa é mostrada junto
+
+Atribuição dos rostos (src/lib/faceMatching.ts):
+  - Para cada par (rosto, pessoa) abaixo do limiar, escolhe do mais próximo
+    para o mais distante, sem repetir pessoa; o que sobra é desconhecido.
 
 Carregamento dos modelos (useFaceRecognition.ts):
-  1. Tenta carregar de public/models/ (local, no deploy)
-  2. Se falhar, usa CDN do repositório oficial do face-api.js no GitHub
+  1. A biblioteca face-api.js é baixada sob demanda (import dinâmico), então a
+     interface e a câmera aparecem antes
+  2. Cada modelo tenta public/models/ (local, no deploy); só o modelo que
+     falhar é baixado da CDN jsDelivr com versão fixa (0.22.2), com tempo
+     limite de 60 s e indicador de progresso
+  3. Base de referência: para cada foto, usa o descritor pré-calculado
+     (JSON), depois o cache do navegador (localStorage) e, só se não houver,
+     calcula na hora. Tudo é indexado pelo hash SHA-256 da foto.
 
 
 --------------------------------------------------------------------------------
 7. ESTRUTURA DE ARQUIVOS PRINCIPAIS
 --------------------------------------------------------------------------------
 
-reconhecimentofacial-3/
+reconhecimentofacial/
 |
 |-- src/
 |   |-- pages/
@@ -175,36 +216,44 @@ reconhecimentofacial-3/
 |   |   |-- NotFound.tsx           Página 404
 |   |
 |   |-- components/
-|   |   |-- CameraCapture.tsx      Câmera, upload e overlay de bounding boxes
+|   |   |-- CameraCapture.tsx      Câmera, envio de imagem e quadro
+|   |   |-- FaceOverlay.tsx        Caixas e rótulos sobre a imagem
 |   |   |-- QuickRegister.tsx      Formulário de cadastro rápido
-|   |   |-- MatchResult.tsx        Componente de resultado (legado/auxiliar)
-|   |   |-- PersonsDatabase.tsx    Visualização da base de pessoas
-|   |   |-- RootErrorBoundary.tsx  Tratamento de erros React
-|   |   |-- ui/                    Componentes shadcn/ui (botões, dialogs, etc.)
+|   |   |-- RootErrorBoundary.tsx  Tela de erro com "Tentar de novo"
 |   |
 |   |-- hooks/
 |   |   |-- useFaceRecognition.ts  Lógica central de IA e matching
 |   |
 |   |-- lib/
-|   |   |-- faceDescriptorSimilarity.ts  Limiar e conversão de distância
-|   |   |-- utils.ts               Utilitários gerais (cn, etc.)
+|   |   |-- faceDescriptorSimilarity.ts  Limiar, faixas e percentual
+|   |   |-- faceMatching.ts        Distância e atribuição dos rostos
+|   |   |-- geometry.ts            Posição das caixas e dos rótulos
+|   |   |-- images.ts              Abrir, reduzir e recortar imagens
+|   |   |-- referenceDescriptors.ts  Descritores pré-calculados
+|   |   |-- descriptorCache.ts     Cache no navegador
+|   |   |-- cameraErrors.ts        Mensagens da câmera
+|   |   |-- ids.ts, dates.ts, utils.ts
 |   |
 |   |-- data/
 |   |   |-- persons.ts             Interface Person e lista inicial
+|   |   |-- descritoresReferencia.json  Descritores da base inicial
 |   |
 |   |-- assets/persons/            Fotos das pessoas pré-cadastradas
-|   |-- App.tsx                    Rotas e providers
+|   |-- test/                      Testes unitários (Vitest)
+|   |-- App.tsx                    Rotas e avisos
 |   |-- main.tsx                   Ponto de entrada React
 |
+|-- e2e/                           Teste de ponta a ponta (Playwright)
+|-- scripts/                       Geração dos descritores (npm run descritores)
 |-- public/
 |   |-- models/                    Pesos do face-api.js (deploy local)
-|   |-- robots.txt
+|   |-- robots.txt, favicon.ico, .nojekyll
 |
-|-- docs/                          Build publicado no GitHub Pages
+|-- docs/                          Build publicado no GitHub Pages (gerado pelo CI)
 |-- .github/workflows/
 |   |-- deploy-pages.yml           CI/CD para GitHub Pages
 |
-|-- vite.config.ts                 Configuração Vite (base URL, alias @)
+|-- vite.config.ts                 Configuração Vite (base URL, 404.html, HTTPS)
 |-- tailwind.config.ts             Tema e estilos Tailwind
 |-- package.json                   Dependências e scripts
 |-- README.md                      Resumo do projeto
@@ -216,9 +265,9 @@ reconhecimentofacial-3/
 --------------------------------------------------------------------------------
 
 Requisitos:
-  - Node.js 18 ou superior
+  - Node.js 20.19 ou superior (recomendado 22 ou 24 LTS)
   - Navegador com suporte a WebRTC (getUserMedia) para uso da câmera
-  - Conexão com internet na primeira carga (se modelos locais não existirem)
+  - A câmera só funciona em HTTPS ou em localhost
 
 Instalação:
 
@@ -230,21 +279,35 @@ Desenvolvimento:
 
   A aplicação abre em http://localhost:8080
 
+Teste no celular (rede local com HTTPS):
+
+  npm run dev:celular
+
 Build de produção:
 
   npm run build
 
-  Gera a pasta dist/ com index.html, 404.html e .nojekyll (GitHub Pages)
+  Gera a pasta dist/ com index.html, 404.html e .nojekyll (GitHub Pages).
+  Funciona igual no Windows, no Linux e no macOS.
 
 Preview do build:
 
-  npm run preview
+  npm run preview      (http://localhost:4173/reconhecimentofacial/)
 
 Outros comandos:
 
-  npm run lint        Verificação ESLint
-  npm test            Testes unitários (Vitest)
-  npm run test:watch  Testes em modo watch
+  npm run lint         Verificação ESLint
+  npm run typecheck    Checagem de tipos
+  npm test             Testes unitários (Vitest)
+  npm run test:e2e     Teste de ponta a ponta (Playwright + Chrome)
+  npm run verificar    Lint + tipos + testes + build
+  npm run descritores  Recalcula os descritores da base inicial
+
+Observações para Windows:
+  - No PowerShell, se o npm for bloqueado pela política de execução, use
+    npm.cmd (ex.: npm.cmd run dev) ou o Prompt de Comando.
+  - Evite pastas sincronizadas pelo OneDrive para o projeto.
+  - Não abra o index.html direto nem pelo Live Server (página em branco).
 
 
 --------------------------------------------------------------------------------
@@ -259,11 +322,14 @@ Configuração:
   - base URL em produção: /reconhecimentofacial/ (vite.config.ts)
   - Workflow: .github/workflows/deploy-pages.yml
   - A cada push na branch main (exceto alterações só em docs/), o CI:
-      1. Instala dependências (npm ci)
-      2. Executa npm run build
-      3. Copia dist/ para a pasta docs/ na branch main
+      1. Instala dependências (npm ci, Node da versão do .nvmrc)
+      2. Roda lint, checagem de tipos e testes (se falhar, não publica)
+      3. Executa npm run build
+      4. Copia dist/ para a pasta docs/ na branch main
 
 No GitHub: Settings → Pages → Deploy from branch → main → /docs
+Depois de cada deploy o bot faz um commit na main: faça git pull antes do
+próximo push.
 
 
 --------------------------------------------------------------------------------
@@ -278,18 +344,26 @@ Layout mobile-first, largura máxima ~28rem, com:
     - Subtítulo: "Sistema de Reconhecimento Facial"
 
   Área principal:
+    - Barra de progresso enquanto os modelos e a base carregam
     - Seletor de câmera (Frontal / Traseira)
     - Quadro 4:3 com cantos destacados e animação de scan durante análise
-    - Botões: Capturar, Reiniciar câmera, Enviar imagem
-    - Resultados com cards verdes (identificado) ou vermelhos (desconhecido)
+      (o quadro respeita a altura da tela, inclusive com o celular deitado)
+    - Botões: Capturar (ou Nova captura), Reiniciar câmera, Enviar imagem
+    - Resultados com cards verdes (identificado) ou vermelhos (desconhecido),
+      numerados como as caixas
 
   Rodapé:
     - "Polícia Militar de Santa Catarina — Uso Restrito"
 
-Estados de carregamento:
-  - "Carregando modelos de reconhecimento..."
-  - "Preparando base de rostos cadastrados..."
-  - Mensagem de erro com botão "Tentar novamente" se modelos falharem
+Acessibilidade:
+  - Página em pt-BR, rótulos ligados aos campos, resultados e erros
+    anunciados para leitores de tela, contraste AA nos botões e erros
+
+Estados de carregamento e erro:
+  - "Carregando modelos de reconhecimento… (n/3)"
+  - "Preparando base de rostos cadastrados… (n/12)"
+  - Mensagem de erro com "Tentar novamente" se os modelos falharem
+  - Tela de erro geral com "Tentar de novo" e "Recarregar página"
 
 
 --------------------------------------------------------------------------------
@@ -300,13 +374,22 @@ Interface Person (src/data/persons.ts):
 
   id: string              Identificador único
   name: string            Nome completo
-  imageSrc: string        URL ou data URL da foto
+  imageSrc: string        URL ou data URL da foto (no cadastro: recorte do rosto)
   notes?: string          Observações opcionais
-  registeredAt: string    Data de cadastro (YYYY-MM-DD)
-  additionalPhotos?: string[]  Fotos adicionais (campo reservado)
+  bodyMarks?: BodyMark[]  Marcas corporais (tipo, local, observação)
+  registeredAt: string    Data de cadastro (AAAA-MM-DD, horário local)
+  additionalPhotos?: string[]  Fotos adicionais aceitas no cadastro
 
-Durante o runtime, cada pessoa também possui um descritor facial (Float32Array
-de 128 elementos) armazenado em memória no hook useFaceRecognition.
+Interface BodyMark:
+
+  id: string
+  type: "tatuagem" | "cicatriz"
+  location?: "braco" | "perna" | "costas" | "rosto" | "maos"
+  observation?: string
+
+Durante o runtime, cada foto de referência gera um descritor facial
+(Float32Array de 128 elementos) armazenado em memória no hook
+useFaceRecognition.
 
 
 --------------------------------------------------------------------------------
@@ -314,11 +397,14 @@ de 128 elementos) armazenado em memória no hook useFaceRecognition.
 --------------------------------------------------------------------------------
 
   - Dados não persistem: cadastros feitos na sessão são perdidos ao recarregar
-  - Processamento 100% client-side: performance depende do dispositivo
+  - Processamento 100% client-side: performance depende do dispositivo; em
+    computadores lentos (ex.: processador limitado a baixa frequência) cada
+    análise pode levar minutos
   - Qualidade da identificação varia com iluminação, ângulo e resolução
   - O percentual exibido é uma escala visual, não probabilidade estatística
-  - Requer permissão de câmera no navegador
-  - Modelos de IA têm tamanho considerável (~vários MB) na primeira carga
+  - Requer permissão de câmera no navegador (e HTTPS fora do localhost)
+  - Modelos de IA têm tamanho considerável (~12 MB) na primeira carga
+  - As fotos da base ficam públicas no site publicado: use com consentimento
   - Projeto acadêmico — não substitui sistemas biométricos certificados
 
 
@@ -326,14 +412,19 @@ de 128 elementos) armazenado em memória no hook useFaceRecognition.
 13. TESTES
 --------------------------------------------------------------------------------
 
-Testes unitários:
-  - Framework: Vitest
-  - Arquivo exemplo: src/test/example.test.ts
+Testes unitários e de componentes:
+  - Framework: Vitest + Testing Library
+  - Arquivos: src/test/*.test.ts(x) — percentual e faixas, atribuição dos
+    rostos, geometria das caixas, cache, IDs, datas, mensagens da câmera,
+    descritores pré-calculados, cadastro rápido, tela de erro e 404
   - Comando: npm test
 
-Testes E2E:
-  - Playwright configurado (playwright.config.ts, playwright-fixture.ts)
-  - Pode ser expandido para fluxos de captura e cadastro
+Teste de ponta a ponta:
+  - Playwright (e2e/fluxos.spec.ts), com câmera falsa do Chrome
+  - Cobre: reconhecer pessoa da base, foto com duas pessoas, cadastro do
+    rosto certo com foto adicional, câmera desligada no cadastro e arquivo
+    inválido
+  - Comando: npm run test:e2e
 
 
 --------------------------------------------------------------------------------
@@ -343,6 +434,21 @@ Testes E2E:
 Projeto acadêmico desenvolvido no contexto da Polícia Militar de Santa
 Catarina (PMSC). Uso restrito conforme definido na aplicação e no contexto
 institucional dos autores.
+
+
+--------------------------------------------------------------------------------
+15. HISTÓRICO DE ALTERAÇÕES
+--------------------------------------------------------------------------------
+
+Novembro de 2026 — revisão de correções e otimização (detalhes em
+RELATORIO_CORRECOES.md):
+  - Build funcionando no Windows; lint sem erros; TypeScript em modo strict
+  - Cadastro grava o rosto escolhido; fotos adicionais funcionam
+  - Câmera desligada ao sair da tela; caixas alinhadas; nada trava em
+    "Analisando..."
+  - Interface aparece antes dos modelos; base de referência pré-calculada
+  - Dependências e arquivos sem uso removidos; Vite 6
+  - Testes unitários, de componentes e de ponta a ponta
 
 ================================================================================
                             Fim da documentação
