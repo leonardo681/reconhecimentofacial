@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
-import { UserPlus, ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ArrowLeft, Loader2, Plus, Upload, UserPlus, X } from "lucide-react";
 
 import {
-  MARK_TYPE_OPTIONS,
   MARK_LOCATION_OPTIONS,
-  MarkType,
-  MarkLocation,
+  MARK_TYPE_OPTIONS,
   formatBodyMark,
+  type MarkLocation,
+  type MarkType,
 } from "@/data/persons";
+import { ACCEPTED_IMAGE_INPUT, canvasToDataUrl, fileToCanvas, isAllowedImageFile } from "@/lib/images";
 
 export interface BodyMarkInput {
   type: MarkType;
@@ -19,34 +20,18 @@ export interface RegisterPayload {
   name: string;
   notes: string;
   bodyMarks: BodyMarkInput[];
+  /** Fotos extras já reduzidas, em data URL. */
   additionalPhotos: string[];
 }
 
 interface QuickRegisterProps {
-  capturedImage: string;
-  onRegister: (payload: RegisterPayload) => void;
+  /** Recorte do rosto escolhido na análise. */
+  faceImage: string;
+  /** Número do rosto na imagem analisada. */
+  faceNumber: number;
+  /** Resolve quando o cadastro termina; rejeita com a mensagem de erro. */
+  onRegister: (payload: RegisterPayload) => Promise<void>;
   onCancel: () => void;
-}
-
-const ACCEPTED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-function isAllowedImageFile(file: File): boolean {
-  const mime = file.type.toLowerCase();
-  if (mime && ACCEPTED_MIME_TYPES.has(mime)) return true;
-  const name = file.name.toLowerCase();
-  return /\.(jpe?g|png|webp)$/.test(name);
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Formato inválido"));
-    };
-    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo"));
-    reader.readAsDataURL(file);
-  });
 }
 
 const emptyMarkDraft = () => ({
@@ -55,11 +40,11 @@ const emptyMarkDraft = () => ({
   observation: "",
 });
 
-export default function QuickRegister({
-  capturedImage,
-  onRegister,
-  onCancel,
-}: QuickRegisterProps) {
+const fieldClass =
+  "w-full rounded-md border border-border bg-muted px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 sm:text-sm";
+const labelClass = "mb-1 block font-heading text-xs uppercase tracking-wider text-muted-foreground";
+
+export default function QuickRegister({ faceImage, faceNumber, onRegister, onCancel }: QuickRegisterProps) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [bodyMarks, setBodyMarks] = useState<BodyMarkInput[]>([]);
@@ -67,7 +52,26 @@ export default function QuickRegister({
   const [markError, setMarkError] = useState("");
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState("");
+  const [readingPhotos, setReadingPhotos] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(true);
+  const ids = {
+    name: useId(),
+    type: useId(),
+    location: useId(),
+    observation: useId(),
+    notes: useId(),
+    photos: useId(),
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const buildMarkFromDraft = (): BodyMarkInput | null => {
     if (!markDraft.type) return null;
@@ -93,38 +97,55 @@ export default function QuickRegister({
     setBodyMarks((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || submitting || readingPhotos) return;
 
     const pendingMark = buildMarkFromDraft();
     const allMarks = pendingMark ? [...bodyMarks, pendingMark] : bodyMarks;
 
-    onRegister({
-      name: name.trim(),
-      notes: notes.trim(),
-      bodyMarks: allMarks,
-      additionalPhotos,
-    });
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await onRegister({
+        name: name.trim(),
+        notes: notes.trim(),
+        bodyMarks: allMarks,
+        additionalPhotos,
+      });
+    } catch (error) {
+      if (mountedRef.current) {
+        setSubmitError(error instanceof Error ? error.message : "Não foi possível concluir o cadastro.");
+      }
+    } finally {
+      if (mountedRef.current) setSubmitting(false);
+    }
   };
 
   const handleAdditionalPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+    // Copia a lista ANTES de limpar o campo: limpar o valor esvazia o mesmo FileList.
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     setUploadError("");
-    if (!files?.length) return;
+    if (!files.length) return;
 
-    const validFiles = Array.from(files).filter(isAllowedImageFile);
-    if (validFiles.length !== files.length) {
-      setUploadError("Alguns arquivos foram ignorados. Use JPG, PNG ou WEBP.");
-    }
+    const validFiles = files.filter(isAllowedImageFile);
+    const problems: string[] = [];
+    if (validFiles.length !== files.length) problems.push("Alguns arquivos foram ignorados. Use JPG, PNG ou WEBP.");
 
-    try {
-      const dataUrls = await Promise.all(validFiles.map(readFileAsDataUrl));
-      setAdditionalPhotos((prev) => [...prev, ...dataUrls]);
-    } catch {
-      setUploadError("Não foi possível ler uma ou mais imagens.");
+    setReadingPhotos(true);
+    const dataUrls: string[] = [];
+    for (const file of validFiles) {
+      try {
+        dataUrls.push(canvasToDataUrl(await fileToCanvas(file)));
+      } catch {
+        problems.push(`Não foi possível abrir "${file.name}".`);
+      }
     }
+    if (!mountedRef.current) return;
+    setReadingPhotos(false);
+    if (dataUrls.length) setAdditionalPhotos((prev) => [...prev, ...dataUrls]);
+    if (problems.length) setUploadError(problems.join(" "));
   };
 
   const removePhoto = (index: number) => {
@@ -132,41 +153,44 @@ export default function QuickRegister({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="mx-auto w-full max-w-md">
       <div className="rounded-lg border-2 border-accent/50 bg-card p-6 glow-accent">
-        <div className="flex items-center gap-3 mb-4">
-          <UserPlus className="w-7 h-7 text-accent" />
-          <h2 className="text-xl font-heading text-foreground">Cadastro Rápido</h2>
+        <div className="mb-4 flex items-center gap-3">
+          <UserPlus className="h-7 w-7 text-accent" aria-hidden="true" />
+          <h2 className="font-heading text-xl text-foreground">Cadastro Rápido</h2>
         </div>
 
         <div className="mb-4">
-          <p className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground mb-2 text-center">
-            Foto principal (captura)
+          <p className="mb-2 text-center font-heading text-[10px] uppercase tracking-wider text-muted-foreground">
+            Rosto selecionado (#{faceNumber})
           </p>
           <img
-            src={capturedImage}
-            alt="Captura principal"
-            className="w-28 h-28 rounded-lg object-cover border border-border mx-auto"
+            src={faceImage}
+            alt={`Rosto número ${faceNumber}, que será cadastrado`}
+            className="mx-auto h-28 w-28 rounded-lg border border-border object-cover"
           />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3" aria-busy={submitting}>
           <div>
-            <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+            <label htmlFor={ids.name} className={labelClass}>
               Nome Completo *
             </label>
             <input
+              id={ids.name}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 rounded-md bg-muted text-foreground border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className={fieldClass}
               placeholder="Digite o nome..."
+              autoComplete="off"
+              required
               autoFocus
             />
           </div>
 
           <fieldset className="space-y-3 rounded-md border border-border/60 p-3">
-            <legend className="px-1 text-xs font-heading uppercase tracking-wider text-muted-foreground">
+            <legend className="px-1 font-heading text-xs uppercase tracking-wider text-muted-foreground">
               Marcas corporais (opcional)
             </legend>
 
@@ -181,10 +205,10 @@ export default function QuickRegister({
                     <button
                       type="button"
                       onClick={() => removeMark(index)}
-                      className="shrink-0 rounded-full bg-destructive p-0.5 text-destructive-foreground"
+                      className="shrink-0 rounded-full bg-destructive p-1 text-destructive-foreground"
                       aria-label={`Remover marca ${index + 1}`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </li>
                 ))}
@@ -192,10 +216,11 @@ export default function QuickRegister({
             )}
 
             <div>
-              <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+              <label htmlFor={ids.type} className={labelClass}>
                 Tipo
               </label>
               <select
+                id={ids.type}
                 value={markDraft.type}
                 onChange={(e) => {
                   const value = e.target.value as MarkType | "";
@@ -207,7 +232,7 @@ export default function QuickRegister({
                   }));
                   setMarkError("");
                 }}
-                className="w-full px-3 py-2 rounded-md bg-muted text-foreground border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className={fieldClass}
               >
                 <option value="">Selecione...</option>
                 {MARK_TYPE_OPTIONS.map((option) => (
@@ -219,10 +244,11 @@ export default function QuickRegister({
             </div>
 
             <div>
-              <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+              <label htmlFor={ids.location} className={labelClass}>
                 Local
               </label>
               <select
+                id={ids.location}
                 value={markDraft.location}
                 onChange={(e) =>
                   setMarkDraft((prev) => ({
@@ -231,7 +257,7 @@ export default function QuickRegister({
                   }))
                 }
                 disabled={!markDraft.type}
-                className="w-full px-3 py-2 rounded-md bg-muted text-foreground border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${fieldClass} disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 <option value="">Selecione...</option>
                 {MARK_LOCATION_OPTIONS.map((option) => (
@@ -243,16 +269,15 @@ export default function QuickRegister({
             </div>
 
             <div>
-              <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+              <label htmlFor={ids.observation} className={labelClass}>
                 Observação livre
               </label>
               <textarea
+                id={ids.observation}
                 value={markDraft.observation}
-                onChange={(e) =>
-                  setMarkDraft((prev) => ({ ...prev, observation: e.target.value }))
-                }
+                onChange={(e) => setMarkDraft((prev) => ({ ...prev, observation: e.target.value }))}
                 disabled={!markDraft.type}
-                className="w-full px-3 py-2 rounded-md bg-muted text-foreground border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${fieldClass} resize-none disabled:cursor-not-allowed disabled:opacity-50`}
                 rows={2}
                 placeholder="Descreva detalhes da tatuagem ou cicatriz..."
               />
@@ -262,64 +287,72 @@ export default function QuickRegister({
               type="button"
               onClick={addMark}
               disabled={!markDraft.type}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-3 py-2 text-xs font-heading uppercase tracking-wider text-muted-foreground transition hover:border-accent/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-3 py-2 font-heading text-xs uppercase tracking-wider text-muted-foreground transition hover:border-accent/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Adicionar marca
             </button>
             {markError && (
-              <p className="text-xs text-destructive" role="alert">
+              <p className="text-xs text-destructive-text" role="alert">
                 {markError}
               </p>
             )}
           </fieldset>
 
           <div>
-            <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+            <label htmlFor={ids.notes} className={labelClass}>
               Observações gerais
             </label>
             <textarea
+              id={ids.notes}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 rounded-md bg-muted text-foreground border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none"
+              className={`${fieldClass} resize-none`}
               rows={2}
               placeholder="Outras informações sobre a pessoa..."
             />
           </div>
 
           <div>
-            <label className="block text-xs font-heading uppercase tracking-wider text-muted-foreground mb-1">
+            <p id={ids.photos} className={labelClass}>
               Fotos Adicionais
-            </label>
-            <p className="text-[11px] text-muted-foreground mb-2">
-              Inclua outros ângulos ou registros para melhorar o reconhecimento.
+            </p>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Inclua outros ângulos da mesma pessoa para melhorar o reconhecimento. Fotos sem rosto ou de outra
+              pessoa são ignoradas.
             </p>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-3 py-2 text-xs font-heading uppercase tracking-wider text-muted-foreground transition hover:border-accent/50 hover:text-foreground"
+              disabled={readingPhotos || submitting}
+              aria-describedby={ids.photos}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-3 py-2 font-heading text-xs uppercase tracking-wider text-muted-foreground transition hover:border-accent/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Upload className="h-4 w-4" />
-              Adicionar fotos
+              {readingPhotos ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden="true" />
+              )}
+              {readingPhotos ? "Lendo fotos..." : "Adicionar fotos"}
             </button>
             <input
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              accept={ACCEPTED_IMAGE_INPUT}
               multiple
               onChange={(e) => void handleAdditionalPhotos(e)}
               aria-label="Adicionar fotos extras"
             />
             {uploadError && (
-              <p className="mt-1 text-xs text-destructive" role="alert">
+              <p className="mt-1 text-xs text-destructive-text" role="alert">
                 {uploadError}
               </p>
             )}
             {additionalPhotos.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {additionalPhotos.map((photo, index) => (
-                  <div key={`${index}-${photo.slice(0, 24)}`} className="relative">
+                  <div key={`${index}-${photo.slice(-24)}`} className="relative">
                     <img
                       src={photo}
                       alt={`Foto adicional ${index + 1}`}
@@ -328,10 +361,10 @@ export default function QuickRegister({
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground"
+                      className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground"
                       aria-label={`Remover foto adicional ${index + 1}`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 ))}
@@ -339,22 +372,33 @@ export default function QuickRegister({
             )}
           </div>
 
+          {submitError && (
+            <p className="text-sm text-destructive-text" role="alert">
+              {submitError}
+            </p>
+          )}
+
           <div className="flex gap-2 pt-1">
             <button
               type="button"
               onClick={onCancel}
-              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-semibold uppercase tracking-wider text-xs hover:brightness-110 transition"
+              disabled={submitting}
+              className="flex items-center gap-1 rounded-lg bg-secondary px-4 py-2 font-heading text-xs font-semibold uppercase tracking-wider text-secondary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Voltar
             </button>
             <button
               type="submit"
-              disabled={!name.trim()}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-accent-foreground font-heading font-semibold uppercase tracking-wider text-xs hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!name.trim() || submitting || readingPhotos}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 font-heading text-xs font-semibold uppercase tracking-wider text-accent-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <UserPlus className="w-4 h-4" />
-              Cadastrar
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+              )}
+              {submitting ? "Cadastrando..." : "Cadastrar"}
             </button>
           </div>
         </form>
