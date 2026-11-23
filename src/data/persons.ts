@@ -8,8 +8,8 @@ import lucianoImg from "@/assets/persons/Luciano.jpeg";
 import marceloImg from "@/assets/persons/Marcelo.jpeg";
 import mariaEduardaImg from "@/assets/persons/Maria_Eduarda.jpeg";
 import rithielyImg from "@/assets/persons/Rithiely.jpeg";
-import carlosAugustoBohnImg from "@/assets/persons/Carlos_Augusto_Bohn.png";
-import rodrigoDelduqueImg from "@/assets/persons/Rodrigo_Delduque.png";
+import carlosAugustoBohnImg from "@/assets/persons/Carlos_Augusto_Bohn.jpeg";
+import rodrigoDelduqueImg from "@/assets/persons/Rodrigo_Delduque.jpeg";
 
 export type MarkType = "tatuagem" | "cicatriz";
 
