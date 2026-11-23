@@ -1,13 +1,13 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, Fragment, type ErrorInfo, type ReactNode } from "react";
 
 type Props = { children: ReactNode };
 
-type State = { error: Error | null };
+type State = { error: Error | null; resetKey: number };
 
 export class RootErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, resetKey: 0 };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
@@ -15,21 +15,48 @@ export class RootErrorBoundary extends Component<Props, State> {
     console.error("RootErrorBoundary:", error, info.componentStack);
   }
 
+  private tryAgain = () => {
+    this.setState((state) => ({ error: null, resetKey: state.resetKey + 1 }));
+  };
+
   render() {
-    if (this.state.error) {
+    const { error, resetKey } = this.state;
+    if (error) {
       return (
-        <div className="min-h-screen bg-slate-950 p-6 text-slate-100">
-          <h1 className="text-xl font-semibold text-red-400">Algo deu errado</h1>
-          <p className="mt-2 text-sm text-slate-300">
-            O app encontrou um erro ao executar. Abra o console do navegador (F12) para mais detalhes.
+        <div
+          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-6 text-center text-foreground"
+          role="alert"
+        >
+          <h1 className="text-xl font-semibold text-destructive-text">Algo deu errado</h1>
+          <p className="max-w-md text-sm text-muted-foreground">
+            O sistema encontrou um erro inesperado. Tente de novo; se não resolver, recarregue a página (os cadastros
+            feitos nesta sessão serão perdidos).
           </p>
-          <pre className="mt-4 max-h-[50vh] overflow-auto rounded-md bg-black/40 p-4 text-xs text-amber-200">
-            {this.state.error.message}
-            {this.state.error.stack ? `\n\n${this.state.error.stack}` : ""}
-          </pre>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={this.tryAgain}
+              className="rounded-lg bg-primary-strong px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Tentar de novo
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground"
+            >
+              Recarregar página
+            </button>
+          </div>
+          {import.meta.env.DEV && (
+            <pre className="mt-2 max-h-[40vh] max-w-full overflow-auto rounded-md bg-black/40 p-4 text-left text-xs text-amber-200">
+              {error.message}
+              {error.stack ? `\n\n${error.stack}` : ""}
+            </pre>
+          )}
         </div>
       );
     }
-    return this.props.children;
+    return <Fragment key={resetKey}>{this.props.children}</Fragment>;
   }
 }
