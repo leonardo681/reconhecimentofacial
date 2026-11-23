@@ -45,16 +45,23 @@ try {
   const canal = process.env.PW_CHANNEL ?? "chrome";
   browser = await chromium.launch(canal === "chromium" ? {} : { channel: canal });
   const page = await browser.newPage();
+  // Tempo máximo (padrão 120 min; numa máquina lenta as 12 fotos levaram ~45 min).
+  const limiteMin = Number(process.env.DESCRITORES_TIMEOUT_MIN ?? 120);
   const resultado = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Tempo esgotado (${limiteMin} min).`)), limiteMin * 60_000);
+    const fim = (fn) => (valor) => {
+      clearTimeout(timer);
+      fn(valor);
+    };
     page.on("console", (m) => {
       const texto = m.text();
-      if (texto.startsWith("__RESULTADO__")) resolve(JSON.parse(texto.slice("__RESULTADO__".length)));
-      else if (texto.startsWith("__ERRO__")) reject(new Error(texto.slice("__ERRO__".length)));
+      if (texto.startsWith("__RESULTADO__")) fim(resolve)(JSON.parse(texto.slice("__RESULTADO__".length)));
+      else if (texto.startsWith("__ERRO__")) fim(reject)(new Error(texto.slice("__ERRO__".length)));
       else console.log("[página]", texto);
     });
-    page.on("pageerror", (e) => console.log("[página] erro:", e.message));
-    page.on("crash", () => reject(new Error("A página travou (crash).")));
-    page.goto(URL_PAGINA, { waitUntil: "commit", timeout: 120000 }).catch(reject);
+    page.on("pageerror", (e) => fim(reject)(new Error(`Erro na página: ${e.message}`)));
+    page.on("crash", () => fim(reject)(new Error("A página travou (crash).")));
+    page.goto(URL_PAGINA, { waitUntil: "commit", timeout: 120000 }).catch(fim(reject));
   });
   fs.writeFileSync(SAIDA, JSON.stringify(resultado, null, 2) + "\n");
   console.log(`OK: ${Object.keys(resultado.entradas).length} descritores gravados em ${path.relative(process.cwd(), SAIDA)}`);

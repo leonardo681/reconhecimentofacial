@@ -104,9 +104,9 @@ describe("QuickRegister", () => {
     ]);
     expect(screen.getByRole("button", { name: /Cadastrando/ })).toBeDisabled();
     await act(async () => {
-      fail(new Error("Não foi possível concluir o cadastro."));
+      fail(new Error("Falha simulada no cadastro"));
     });
-    expect(await screen.findByText("Não foi possível concluir o cadastro.")).toBeInTheDocument();
+    expect(await screen.findByText("Falha simulada no cadastro")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cadastrar/ })).toBeEnabled();
   });
 

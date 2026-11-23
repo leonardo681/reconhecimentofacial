@@ -2,6 +2,7 @@ import precomputed from "@/data/descritoresReferencia.json";
 import { getPersonPhotoSources, initialPersons } from "@/data/persons";
 import { DESCRIPTOR_CACHE_VERSION } from "./descriptorCache";
 import { fileToCanvas } from "./images";
+import { sha256HexJs } from "./sha256";
 
 type FaceApi = typeof import("face-api.js");
 
@@ -12,12 +13,18 @@ interface PrecomputedFile {
 
 const data = precomputed as PrecomputedFile;
 
-/** SHA-256 em hexadecimal (null fora de contexto seguro, onde `crypto.subtle` não existe). */
-export async function sha256Hex(buffer: ArrayBuffer): Promise<string | null> {
+/** SHA-256 em hexadecimal: usa `crypto.subtle` e, fora de contexto seguro, a versão em JS. */
+export async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
-  if (!subtle) return null;
-  const digest = await subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  if (subtle) {
+    try {
+      const digest = await subtle.digest("SHA-256", buffer);
+      return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    } catch {
+      // cai na versão em JS abaixo
+    }
+  }
+  return sha256HexJs(new Uint8Array(buffer));
 }
 
 /**
@@ -55,18 +62,27 @@ export async function generateReferenceDescriptors(log: (message: string) => voi
   ]);
   log("modelos carregados");
   const entradas: PrecomputedFile["entradas"] = {};
+  const semRosto: string[] = [];
   for (const person of initialPersons) {
     for (const src of getPersonPhotoSources(person)) {
       const started = performance.now();
-      const blob = await (await fetch(src)).blob();
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`Não foi possível baixar ${src} (HTTP ${response.status}).`);
+      const blob = await response.blob();
       const hash = await sha256Hex(await blob.arrayBuffer());
       const descriptor = await describeReferencePhoto(faceapi, blob);
       const arquivo = decodeURIComponent(src.split("/").pop()?.split("?")[0] ?? src);
       log(`${person.name} (${arquivo}): ${descriptor ? "ok" : "SEM ROSTO"} em ${Math.round(performance.now() - started)} ms`);
-      if (descriptor && hash) {
+      if (descriptor) {
         entradas[hash] = { arquivo, descritor: Array.from(descriptor, (n) => Math.round(n * 1e6) / 1e6) };
+      } else {
+        semRosto.push(arquivo);
       }
     }
+  }
+  if (semRosto.length) {
+    // Melhor falhar do que gravar um JSON incompleto: troque a foto por uma com o rosto visível.
+    throw new Error(`Nenhum rosto detectado em: ${semRosto.join(", ")}. Troque essas fotos e rode de novo.`);
   }
   return { versao: DESCRIPTOR_CACHE_VERSION, entradas };
 }

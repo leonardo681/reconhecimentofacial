@@ -20,6 +20,8 @@ type FaceApi = typeof import("face-api.js");
 /** Pesos oficiais com versão fixa, usados só para o modelo que falhar em /models do site. */
 const REMOTE_MODEL_BASE = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
 const LOAD_TIMEOUT_MS = 60_000;
+/** Os modelos somam ~12 MB: em rede móvel fraca o download pode levar alguns minutos. */
+const MODEL_TIMEOUT_MS = 5 * 60_000;
 const NET_NAMES = ["ssdMobilenetv1", "faceLandmark68Net", "faceRecognitionNet"] as const;
 
 export type RecognitionStatus = "carregando-modelos" | "preparando-base" | "pronto" | "erro";
@@ -79,9 +81,12 @@ function loadFaceApi(): Promise<FaceApi> {
   return faceApiPromise;
 }
 
+/** Erro de tempo esgotado (diferente de um erro de rede ou HTTP). */
+class TimeoutError extends Error {}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
+    const timer = setTimeout(() => reject(new TimeoutError(message)), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
@@ -119,7 +124,7 @@ export function useFaceRecognition() {
   const statusRef = useRef<RecognitionStatus>(status);
   statusRef.current = status;
 
-  // Carrega os modelos (um por um, com fallback individual) e monta a base de referência.
+  // Carrega os três modelos em paralelo (com fallback individual) e monta a base de referência.
   useEffect(() => {
     let cancelled = false;
 
@@ -144,15 +149,20 @@ export function useFaceRecognition() {
           const net = faceapi.nets[name];
           if (!net.isLoaded) {
             try {
-              await withTimeout(net.loadFromUri(localModels), LOAD_TIMEOUT_MS, `Tempo esgotado ao baixar o modelo ${name}.`);
+              await withTimeout(net.loadFromUri(localModels), MODEL_TIMEOUT_MS, `Tempo esgotado ao baixar o modelo ${name}.`);
             } catch (error) {
-              console.warn(`Modelo ${name} indisponível em ${localModels}; usando a CDN com versão fixa.`, error);
-              if (!cancelled) setUsingCdn(true);
-              await withTimeout(
-                net.loadFromUri(REMOTE_MODEL_BASE),
-                LOAD_TIMEOUT_MS,
-                `Tempo esgotado ao baixar o modelo ${name} da CDN.`,
-              );
+              // Rede lenta (tempo esgotado) não é motivo para baixar tudo de novo da CDN:
+              // o download local continua e o usuário pode tentar de novo.
+              if (!net.isLoaded) {
+                if (error instanceof TimeoutError) throw error;
+                console.warn(`Modelo ${name} indisponível em ${localModels}; usando a CDN com versão fixa.`, error);
+                if (!cancelled) setUsingCdn(true);
+                await withTimeout(
+                  net.loadFromUri(REMOTE_MODEL_BASE),
+                  MODEL_TIMEOUT_MS,
+                  `Tempo esgotado ao baixar o modelo ${name} da CDN.`,
+                );
+              }
             }
           }
           if (!cancelled) setProgress((p) => ({ ...p, modelsLoaded: p.modelsLoaded + 1 }));
@@ -173,11 +183,11 @@ export function useFaceRecognition() {
             // Tudo indexado pelo hash do conteúdo da foto: se a foto mudar, recalcula.
             const photo = await (await fetch(src)).blob();
             const hash = await sha256Hex(await photo.arrayBuffer());
-            const cacheKey = hash ? `sha256:${hash}` : null;
-            descriptor = (hash && precomputedDescriptor(hash)) || (cacheKey && readCachedDescriptor(cacheKey)) || null;
+            const cacheKey = `sha256:${hash}`;
+            descriptor = precomputedDescriptor(hash) ?? readCachedDescriptor(cacheKey);
             if (!descriptor) {
               descriptor = await describeReferencePhoto(faceapi, photo);
-              if (descriptor && cacheKey) writeCachedDescriptor(cacheKey, descriptor);
+              if (descriptor) writeCachedDescriptor(cacheKey, descriptor);
               await yieldToBrowser();
             }
           } catch (error) {

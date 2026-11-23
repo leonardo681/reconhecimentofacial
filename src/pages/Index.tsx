@@ -109,48 +109,67 @@ export default function Index() {
 
   // O cadastro entra no histórico: o botão/gesto "voltar" do celular volta para a câmera
   // em vez de sair do app. A URL não muda; só acrescentamos uma entrada ao histórico.
+  /** Rosto em cadastro agora (o "voltar" do sistema zera, mesmo com um cadastro em andamento). */
+  const registeringRef = useRef<AnalyzedFace | null>(null);
+  /** Evita dois cadastros ao mesmo tempo (clique duplo). */
+  const registerBusyRef = useRef(false);
+
   const openRegister = (face: AnalyzedFace) => {
+    registeringRef.current = face;
     setRegistering(face);
     window.history.pushState({ ...(window.history.state ?? {}), cadastro: true }, "");
   };
   const closeRegister = () => {
+    registeringRef.current = null;
     if ((window.history.state as { cadastro?: boolean } | null)?.cadastro) window.history.back();
     else setRegistering(null);
   };
   useEffect(() => {
     if (!registering) return;
-    const onPopState = () => setRegistering(null);
+    const onPopState = () => {
+      registeringRef.current = null;
+      setRegistering(null);
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [registering]);
 
   const handleRegister = async (payload: RegisterPayload) => {
-    if (!registering) return;
-    const face = registering;
-    const result = await addPerson({
-      name: payload.name,
-      descriptor: face.descriptor,
-      imageSrc: face.thumb,
-      notes: payload.notes,
-      bodyMarks: payload.bodyMarks,
-      additionalPhotos: payload.additionalPhotos,
-    });
-    // O rosto cadastrado passa a aparecer como identificado no resultado atual.
-    setAnalysis((prev) =>
-      prev && {
-        ...prev,
-        faces: prev.faces.map((f) =>
-          f.index === face.index ? { ...f, person: result.person, distance: 0, level: "alta" } : f,
-        ),
-      },
-    );
-    const ignored = result.rejected.length
-      ? ` ${result.rejected.length} foto(s) extra(s) ignorada(s): ${result.rejected
-          .map((r) => `foto ${r.photo} (${r.reason})`)
-          .join(", ")}.`
-      : "";
-    toast.success(`${result.person.name} cadastrado(a) com ${result.descriptors} foto(s) de referência.${ignored}`);
-    closeRegister();
+    const face = registeringRef.current;
+    if (!face || registerBusyRef.current) return;
+    registerBusyRef.current = true;
+    // A análise de onde o rosto veio: se o usuário já fez outra consulta, ela não é alterada.
+    const scanId = scanIdRef.current;
+    try {
+      const result = await addPerson({
+        name: payload.name,
+        descriptor: face.descriptor,
+        imageSrc: face.thumb,
+        notes: payload.notes,
+        bodyMarks: payload.bodyMarks,
+        additionalPhotos: payload.additionalPhotos,
+      });
+      // O rosto cadastrado passa a aparecer como identificado no resultado de origem.
+      setAnalysis((prev) =>
+        prev && scanIdRef.current === scanId
+          ? {
+              ...prev,
+              faces: prev.faces.map((f) =>
+                f.index === face.index ? { ...f, person: result.person, distance: 0, level: "alta" } : f,
+              ),
+            }
+          : prev,
+      );
+      const ignored = result.rejected.length
+        ? ` ${result.rejected.length} foto(s) extra(s) ignorada(s): ${result.rejected
+            .map((r) => `foto ${r.photo} (${r.reason})`)
+            .join(", ")}.`
+        : "";
+      toast.success(`${result.person.name} cadastrado(a) com ${result.descriptors} foto(s) de referência.${ignored}`);
+      if (registeringRef.current === face) closeRegister();
+    } finally {
+      registerBusyRef.current = false;
+    }
   };
 
   // Os cadastros ficam só na memória: avisa antes de sair da página e perdê-los.

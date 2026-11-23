@@ -17,7 +17,7 @@ describe("descritores pré-calculados", () => {
           .update(fs.readFileSync(path.resolve("src/assets/persons", arquivo)))
           .digest("hex");
         const entrada = entradas[hash];
-        expect(entrada, `A foto ${arquivo} mudou ou é nova: rode "npm run descritores".`).toBeDefined();
+        expect(entrada, `A foto ${arquivo} mudou, é nova ou não tem rosto detectável: rode "npm run descritores" (se ele disser que não há rosto, troque a foto).`).toBeDefined();
         expect(entrada.descritor).toHaveLength(128);
       }
     }

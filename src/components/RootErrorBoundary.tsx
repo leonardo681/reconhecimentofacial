@@ -29,8 +29,8 @@ export class RootErrorBoundary extends Component<Props, State> {
         >
           <h1 className="text-xl font-semibold text-destructive-text">Algo deu errado</h1>
           <p className="max-w-md text-sm text-muted-foreground">
-            O sistema encontrou um erro inesperado. Tente de novo; se não resolver, recarregue a página (os cadastros
-            feitos nesta sessão serão perdidos).
+            O sistema encontrou um erro inesperado e precisou reiniciar a tela. Os cadastros feitos nesta sessão foram
+            perdidos. Tente de novo; se o erro continuar, recarregue a página.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             <button

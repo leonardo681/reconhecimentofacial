@@ -27,13 +27,15 @@ describe("newId", () => {
   });
 
   it("funciona até sem crypto", () => {
-    expect(newId(undefined)).toMatch(UUID_V4);
+    expect(newId({})).toMatch(UUID_V4);
   });
 });
 
 describe("localDateISO", () => {
   it("usa a data local: cadastro às 23h30 não vira o dia seguinte", () => {
     expect(localDateISO(new Date(2026, 10, 22, 23, 30))).toBe("2026-11-22");
+    // 02h30 UTC do dia 23 = 23h30 do dia 22 em São Paulo (o vitest.config.ts fixa esse fuso).
+    expect(localDateISO(new Date(Date.UTC(2026, 10, 23, 2, 30)))).toBe("2026-11-22");
   });
 
   it("completa mês e dia com zero", () => {

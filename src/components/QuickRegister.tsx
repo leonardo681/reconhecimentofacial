@@ -113,12 +113,13 @@ export default function QuickRegister({ faceImage, faceNumber, onRegister, onCan
         bodyMarks: allMarks,
         additionalPhotos,
       });
+      // Em caso de sucesso o formulário é fechado pela tela principal; ele continua
+      // como "Cadastrando..." até sumir, para não permitir um segundo envio.
     } catch (error) {
       if (mountedRef.current) {
         setSubmitError(error instanceof Error ? error.message : "Não foi possível concluir o cadastro.");
+        setSubmitting(false);
       }
-    } finally {
-      if (mountedRef.current) setSubmitting(false);
     }
   };
 

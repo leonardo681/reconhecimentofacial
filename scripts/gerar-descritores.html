@@ -8,12 +8,13 @@
     <!-- Página usada só por `npm run descritores` (servida pelo Vite em modo dev; não entra no build). -->
     <pre id="log">Gerando descritores…</pre>
     <script type="module">
-      import { generateReferenceDescriptors } from "/src/lib/referenceDescriptors.ts";
       const log = (message) => {
         document.getElementById("log").textContent += "\n" + message;
         console.log(message);
       };
       try {
+        // Import dinâmico dentro do try: um import quebrado vira __ERRO__ em vez de travar o script.
+        const { generateReferenceDescriptors } = await import("/src/lib/referenceDescriptors.ts");
         const resultado = await generateReferenceDescriptors(log);
         // O script Node recebe o resultado pelo console (mais robusto que ler variáveis da página).
         console.log("__RESULTADO__" + JSON.stringify(resultado));
