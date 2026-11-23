@@ -35,17 +35,24 @@ describe("RootErrorBoundary", () => {
       return <p>tudo certo</p>;
     };
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    render(
-      <RootErrorBoundary>
-        <Bomba />
-      </RootErrorBoundary>,
-    );
-    expect(screen.getByText("Algo deu errado")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Recarregar página" })).toBeInTheDocument();
-    explode = false;
-    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
-    expect(screen.getByText("tudo certo")).toBeInTheDocument();
-    spy.mockRestore();
+    // O erro é proposital: evita que o jsdom o imprima como "Uncaught".
+    const silenciar = (event: ErrorEvent) => event.preventDefault();
+    window.addEventListener("error", silenciar);
+    try {
+      render(
+        <RootErrorBoundary>
+          <Bomba />
+        </RootErrorBoundary>,
+      );
+      expect(screen.getByText("Algo deu errado")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Recarregar página" })).toBeInTheDocument();
+      explode = false;
+      fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+      expect(screen.getByText("tudo certo")).toBeInTheDocument();
+    } finally {
+      window.removeEventListener("error", silenciar);
+      spy.mockRestore();
+    }
   });
 });
 
