@@ -111,7 +111,8 @@ Fluxo da tela principal (Index.tsx):
   - Acesso via WebRTC (navigator.mediaDevices.getUserMedia)
   - Suporte a câmera frontal (user) e traseira (environment)
   - Detecção automática quando o dispositivo possui apenas uma câmera
-  - Resolução ideal: 640x480
+  - Resolução ideal: 640x480, a 15 quadros/s (basta para enquadrar e pesa
+    menos em computadores fracos)
   - "Capturar" só fica disponível quando o vídeo já tem imagem
   - A câmera é desligada ao sair da tela de captura e quando a aba vai para
     segundo plano; pedidos de câmera antigos são descartados (sem vazamento)
@@ -196,12 +197,15 @@ Atribuição dos rostos (src/lib/faceMatching.ts):
 Carregamento dos modelos (useFaceRecognition.ts):
   1. A biblioteca face-api.js é baixada sob demanda (import dinâmico), então a
      interface e a câmera aparecem antes
-  2. Cada modelo tenta public/models/ (local, no deploy); só o modelo que
-     falhar é baixado da CDN jsDelivr com versão fixa (0.22.2), com tempo
-     limite de 60 s e indicador de progresso
+  2. Cada modelo tenta public/models/ (local, no deploy), com indicador de
+     progresso. Só o modelo que falhar por erro de rede ou HTTP é baixado da
+     CDN jsDelivr com versão fixa (0.22.2). Cada modelo tem até 5 min para
+     carregar; se não terminar, aparece um erro com "Tentar de novo"
   3. Base de referência: para cada foto, usa o descritor pré-calculado
      (JSON), depois o cache do navegador (localStorage) e, só se não houver,
-     calcula na hora. Tudo é indexado pelo hash SHA-256 da foto.
+     calcula na hora. Tudo é indexado pelo hash SHA-256 da foto (calculado
+     em JavaScript quando o navegador não oferece crypto.subtle, como em
+     http://IP-da-rede).
 
 
 --------------------------------------------------------------------------------
@@ -416,7 +420,7 @@ Testes unitários e de componentes:
   - Framework: Vitest + Testing Library
   - Arquivos: src/test/*.test.ts(x) — percentual e faixas, atribuição dos
     rostos, geometria das caixas, cache, IDs, datas, mensagens da câmera,
-    descritores pré-calculados, cadastro rápido, tela de erro e 404
+    descritores pré-calculados, SHA-256, cadastro rápido, tela de erro e 404
   - Comando: npm test
 
 Teste de ponta a ponta:
@@ -425,6 +429,8 @@ Teste de ponta a ponta:
     rosto certo com foto adicional, câmera desligada no cadastro e arquivo
     inválido
   - Comando: npm run test:e2e
+  - Em computadores lentos pode levar mais de meia hora (limite: 60 min),
+    porque cada análise roda no navegador
 
 
 --------------------------------------------------------------------------------

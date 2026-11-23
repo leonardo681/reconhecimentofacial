@@ -77,7 +77,7 @@ Abra no celular o endereço `https://<IP-do-computador>:8080` que aparece no ter
 | `npm run verificar` | Lint + tipos + testes + build (o mesmo que o CI roda) |
 | `npm run descritores` | Recalcula `src/data/descritoresReferencia.json` (rode ao trocar fotos da base) |
 
-Os testes de ponta a ponta usam o Google Chrome instalado. Sem ele, rode `npx playwright install chromium` e defina `PW_CHANNEL=chromium`.
+Os testes de ponta a ponta usam o Google Chrome instalado. Sem ele, rode `npx playwright install chromium` e defina `PW_CHANNEL=chromium`. Em computadores lentos, o teste completo pode levar mais de meia hora, porque cada análise roda no navegador.
 
 ## Base de pessoas
 
