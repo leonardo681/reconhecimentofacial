@@ -81,7 +81,8 @@ export default function CameraCapture({
 
     navigator.mediaDevices
       .getUserMedia({
-        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+        // 15 quadros/s bastam para enquadrar um rosto e aliviam máquinas fracas.
+        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } },
         audio: false,
       })
       .then((stream) => {
