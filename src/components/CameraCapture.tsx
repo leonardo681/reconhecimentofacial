@@ -223,7 +223,7 @@ export default function CameraCapture({
       </fieldset>
 
       {/* Quadro 4:3; a largura é limitada pela altura da tela (svh) também em telas largas e no celular deitado. */}
-      <div className="relative mx-auto aspect-[4/3] w-full min-w-0 max-w-[min(100%,28rem,calc(52svh*4/3))] overflow-hidden rounded-lg border-2 border-primary/50 bg-muted glow-primary">
+      <div className="relative mx-auto aspect-[4/3] w-full min-w-0 max-w-[min(100%,28rem,calc(42svh*4/3))] overflow-hidden rounded-lg border-2 border-primary/50 bg-muted glow-primary">
         {scanning && (
           <div className="pointer-events-none absolute inset-0 z-30">
             <div className="absolute inset-x-0 top-0 h-1 bg-primary/70 animate-scan motion-reduce:animate-none" />

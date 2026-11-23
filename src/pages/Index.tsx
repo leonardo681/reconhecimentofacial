@@ -21,6 +21,14 @@ interface Analysis {
   done: boolean;
 }
 
+/** Espera o próximo quadro ser desenhado (no máximo 100 ms, para não parar com a aba em segundo plano). */
+const nextPaint = () =>
+  new Promise<void>((resolve) => {
+    const done = () => resolve();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(done, 0));
+    setTimeout(done, 100);
+  });
+
 const secondaryButton =
   "rounded-lg bg-secondary px-4 py-2 font-heading text-xs font-semibold uppercase tracking-wider text-secondary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -46,6 +54,10 @@ export default function Index() {
         if (id !== scanIdRef.current) return;
         const frozen: FrozenImage = { url: canvasToDataUrl(canvas), width: canvas.width, height: canvas.height, source };
         setAnalysis({ frozen, canvas, faces: [], done: false });
+        // Deixa o navegador desenhar o quadro congelado e o "Analisando..." antes do
+        // processamento pesado começar (sem isso, a tela parecia travada após o clique).
+        await nextPaint();
+        if (id !== scanIdRef.current) return;
         const results = await analyze(canvas);
         if (id !== scanIdRef.current) return;
         const faces = results.map((face) => ({ ...face, thumb: cropToDataUrl(canvas, face.box) }));
