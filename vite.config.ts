@@ -39,9 +39,9 @@ export default defineConfig(({ mode }) => {
       // Só nesta máquina por padrão; na rede, apenas com `npm run dev:celular`.
       host: celular ? true : "localhost",
       port: 8080,
-      hmr: {
-        overlay: false,
-      },
+      // `npm run descritores` desliga o HMR: editar um arquivo durante a geração
+      // recarregaria a página e perderia o resultado.
+      hmr: process.env.VITE_SEM_HMR ? false : { overlay: false },
     },
     preview: {
       host: "localhost",

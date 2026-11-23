@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Gerar descritores de referência</title>
+  </head>
+  <body>
+    <!-- Página usada só por `npm run descritores` (servida pelo Vite em modo dev; não entra no build). -->
+    <pre id="log">Gerando descritores…</pre>
+    <script type="module">
+      import { generateReferenceDescriptors } from "/src/lib/referenceDescriptors.ts";
+      const log = (message) => {
+        document.getElementById("log").textContent += "\n" + message;
+        console.log(message);
+      };
+      try {
+        const resultado = await generateReferenceDescriptors(log);
+        // O script Node recebe o resultado pelo console (mais robusto que ler variáveis da página).
+        console.log("__RESULTADO__" + JSON.stringify(resultado));
+        log("pronto");
+      } catch (error) {
+        const erro = String((error && error.stack) || error);
+        console.log("__ERRO__" + erro);
+        log("erro: " + erro);
+      }
+    </script>
+  </body>
+</html>

@@ -34,7 +34,8 @@ function newCanvas(width: number, height: number): { canvas: HTMLCanvasElement; 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  // O face-api.js lê os pixels deste canvas (getImageData): mantê-lo na memória da CPU evita cópias da GPU.
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Este navegador não permite desenhar imagens (canvas 2D indisponível).");
   return { canvas, ctx };
 }
