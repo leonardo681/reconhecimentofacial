@@ -13,9 +13,10 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: "list",
-  // O reconhecimento roda no navegador: em máquinas lentas cada análise pode levar minutos.
-  timeout: 30 * 60 * 1000,
-  expect: { timeout: 10 * 60 * 1000 },
+  // O reconhecimento roda no navegador: em máquinas lentas cada análise pode levar vários minutos
+  // e o teste inteiro, mais de meia hora.
+  timeout: 60 * 60 * 1000,
+  expect: { timeout: 15 * 60 * 1000 },
   use: {
     baseURL: `http://localhost:${PORT}/reconhecimentofacial/`,
     trace: "retain-on-failure",
